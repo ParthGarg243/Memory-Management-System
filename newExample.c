@@ -112,6 +112,8 @@ void* mems_malloc(size_t size) {
     }
 }
 
+// // Function to allocate memory using MeMS
+// void* mems_malloc(size_t size) {
 //     SubNode* segment = NULL;
 //     // Iterate through the free list to find a suitable segment
 //     MainNode* main_chain_node = head;
@@ -155,29 +157,33 @@ void* mems_malloc(size_t size) {
 //     }
 // }
 
-// Function to free memory using MeMS
 void mems_free(void* ptr) {
-    // Find the segment in the free list based on the MeMS virtual address (ptr)
-    MainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node -> sub_chain;
-        while (sub_chain != NULL) {
-            if (sub_chain -> mem_ptr == ptr) {
-                // Mark the segment as HOLE
-                sub_chain -> is_allocated = 'H';
-                return;
-            }
-            sub_chain = sub_chain -> nextNode;
-        }
-        main_chain_node = main_chain_node -> nextNode;
-    }
-
-    // If the segment with the provided MeMS virtual address is not found, you can handle this as an error.
-    // You may print an error message or take appropriate action as needed.
-    // For example:
-    fprintf(stderr, "Error: Segment with MeMS virtual address %p not found in the free list.\n", ptr);
-    // You might also consider returning an error code to indicate failure.
+     
 }
+
+// // Function to free memory using MeMS
+// void mems_free(void* ptr) {
+//     // Find the segment in the free list based on the MeMS virtual address (ptr)
+//     MainNode* main_chain_node = head;
+//     while (main_chain_node != NULL) {
+//         SubNode* sub_chain = main_chain_node -> sub_chain;
+//         while (sub_chain != NULL) {
+//             if (sub_chain -> mem_ptr == ptr) {
+//                 // Mark the segment as HOLE
+//                 sub_chain -> is_allocated = 'H';
+//                 return;
+//             }
+//             sub_chain = sub_chain -> nextNode;
+//         }
+//         main_chain_node = main_chain_node -> nextNode;
+//     }
+
+//     // If the segment with the provided MeMS virtual address is not found, you can handle this as an error.
+//     // You may print an error message or take appropriate action as needed.
+//     // For example:
+//     fprintf(stderr, "Error: Segment with MeMS virtual address %p not found in the free list.\n");
+//     // You might also consider returning an error code to indicate failure.
+// }
 
 // Function to print MeMS statistics
 void mems_print_stats() {
