@@ -11,7 +11,7 @@
 typedef struct SubNode {
     void* mem_ptr;  // MeMS virtual address
     size_t size;    // Size of the segment
-    int is_allocated;  // 1 if allocated (PROCESS), 0 if free (HOLE)
+    char is_allocated;  // P for Process, H for Hole
     struct SubNode* nextNode;
     struct SubNode* prevNode;
 } SubNode;
