@@ -32,24 +32,24 @@ void* mems_malloc(size_t size) {
     // Iterate through the free list to find a suitable segment
     MainNode* main_chain_node = head;
     while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node->sub_chain;
+        SubNode* sub_chain = main_chain_node -> sub_chain;
         while (sub_chain != NULL) {
-            if (sub_chain->is_allocated == 0 && sub_chain->size >= size) {
+            if (sub_chain -> is_allocated == 0 && sub_chain -> size >= size) {
                 segment = sub_chain;
                 break;
             }
-            sub_chain = sub_chain->nextNode;
+            sub_chain = sub_chain -> nextNode;
         }
         if (segment != NULL) {
             break;
         }
-        main_chain_node = main_chain_node->nextNode;
+        main_chain_node = main_chain_node -> nextNode;
     }
 
     if (segment != NULL) {
         // Allocate the requested memory from the segment
-        segment->is_allocated = 1;
-        return segment->mem_ptr;
+        segment -> is_allocated = 'P';
+        return segment -> mem_ptr;
     } 
     else {
         // Use mmap to allocate a new segment
@@ -61,9 +61,9 @@ void* mems_malloc(size_t size) {
         }
         
         SubNode* new_segment = (SubNode*)malloc(sizeof(SubNode));
-        new_segment->mem_ptr = new_mem;
-        new_segment->size = required_size;
-        new_segment->is_allocated = 1;
+        new_segment -> mem_ptr = new_mem;
+        new_segment -> size = required_size;
+        new_segment -> is_allocated = 1;
         // Add the new segment to the free list
         // ...
 
@@ -76,16 +76,16 @@ void mems_free(void* ptr) {
     // Find the segment in the free list based on the MeMS virtual address (ptr)
     MainNode* main_chain_node = head;
     while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node->sub_chain;
+        SubNode* sub_chain = main_chain_node -> sub_chain;
         while (sub_chain != NULL) {
-            if (sub_chain->mem_ptr == ptr) {
+            if (sub_chain -> mem_ptr == ptr) {
                 // Mark the segment as HOLE
-                sub_chain->is_allocated = 0;
+                sub_chain -> is_allocated = 'H';
                 return;
             }
-            sub_chain = sub_chain->nextNode;
+            sub_chain = sub_chain -> nextNode;
         }
-        main_chain_node = main_chain_node->nextNode;
+        main_chain_node = main_chain_node -> nextNode;
     }
 
     // If the segment with the provided MeMS virtual address is not found, you can handle this as an error.
@@ -104,23 +104,29 @@ void mems_print_stats() {
     // Iterate through the free list and print details
     MainNode* main_chain_node = head;
     while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node->sub_chain;
+        SubNode* sub_chain = main_chain_node -> sub_chain;
         while (sub_chain != NULL) {
             // Print details about the segment
-            printf("Segment at MeMS virtual address: %p\n", sub_chain->mem_ptr);
-            printf("Size: %zu bytes\n", sub_chain->size);
-            printf("Status: %s\n", sub_chain->is_allocated ? "PROCESS" : "HOLE");
-
-            // Update statistics
-            total_mapped_pages += sub_chain->size / PAGE_SIZE;
-            if (sub_chain->is_allocated == 0) {
-                total_unused_memory += sub_chain->size;
+            printf("Segment at MeMS virtual address: %p\n", sub_chain -> mem_ptr);
+            printf("Size: %zu bytes\n", sub_chain -> size);
+            printf("Status: ");
+            if (sub_chain -> is_allocated == 'H') {
+                printf("Hole\n");
+            }
+            else {
+                printf("Process\n");
             }
 
-            sub_chain = sub_chain->nextNode;
+            // Update statistics
+            total_mapped_pages += sub_chain -> size / PAGE_SIZE;
+            if (sub_chain -> is_allocated == 'H') {
+                total_unused_memory += sub_chain -> size;
+            }
+
+            sub_chain = sub_chain -> nextNode;
         }
 
-        main_chain_node = main_chain_node->nextNode;
+        main_chain_node = main_chain_node -> nextNode;
     }
 
     // Print total statistics
@@ -133,15 +139,15 @@ void* mems_get(void* v_ptr) {
     // Iterate through the free list to find the segment with the matching MeMS virtual address
     MainNode* main_chain_node = head;
     while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node->sub_chain;
+        SubNode* sub_chain = main_chain_node -> sub_chain;
         while (sub_chain != NULL) {
-            if (sub_chain->mem_ptr == v_ptr) {
+            if (sub_chain -> mem_ptr == v_ptr) {
                 // Found the segment with the matching virtual address
-                return sub_chain->mem_ptr;  // Return the MeMS physical address
+                return sub_chain -> mem_ptr;  // Return the MeMS physical address
             }
-            sub_chain = sub_chain->nextNode;
+            sub_chain = sub_chain -> nextNode;
         }
-        main_chain_node = main_chain_node->nextNode;
+        main_chain_node = main_chain_node -> nextNode;
     }
 
     // If the segment with the provided virtual address is not found, return NULL
@@ -155,15 +161,15 @@ void mems_finish() {
     // Iterate through the free list and unmap all allocated memory segments
     MainNode* main_chain_node = head;
     while (main_chain_node != NULL) {
-        SubNode* sub_chain = main_chain_node->sub_chain;
+        SubNode* sub_chain = main_chain_node -> sub_chain;
         while (sub_chain != NULL) {
-            if (sub_chain->is_allocated) {
+            if (sub_chain -> is_allocated == 'P') {
                 // Unmap the allocated memory segment
-                munmap(sub_chain->mem_ptr, sub_chain->size);
+                munmap(sub_chain -> mem_ptr, sub_chain -> size);
             }
-            sub_chain = sub_chain->nextNode;
+            sub_chain = sub_chain -> nextNode;
         }
-        main_chain_node = main_chain_node->nextNode;
+        main_chain_node = main_chain_node -> nextNode;
     }
 }
 
