@@ -29,9 +29,7 @@ Initializes all the required parameters for the MeMS system. The main parameters
 Input Parameter: Nothing
 Returns: Nothing
 */
-void mems_init(){
-
-}
+void mems_init();
 
 
 /*
@@ -40,9 +38,7 @@ allocated memory using the munmap system call.
 Input Parameter: Nothing
 Returns: Nothing
 */
-void mems_finish(){
-    
-}
+void mems_finish();
 
 
 /*
@@ -57,9 +53,7 @@ by adding it to the free list.
 Parameter: The size of the memory the user program wants
 Returns: MeMS Virtual address (that is created by MeMS)
 */ 
-void* mems_malloc(size_t size){
-
-}
+void* mems_malloc(size_t size);
 
 
 /*
@@ -70,9 +64,7 @@ this function print the stats of the MeMS system like
 Parameter: Nothing
 Returns: Nothing but should print the necessary information on STDOUT
 */
-void mems_print_stats(){
-
-}
+void mems_print_stats();
 
 
 /*
@@ -80,9 +72,7 @@ Returns the MeMS physical address mapped to ptr ( ptr is MeMS virtual address).
 Parameter: MeMS Virtual address (that is created by MeMS)
 Returns: MeMS physical address mapped to the passed ptr (MeMS virtual address).
 */
-void *mems_get(void*v_ptr){
-    
-}
+void *mems_get(void*v_ptr);
 
 
 /*
@@ -90,6 +80,4 @@ this function free up the memory pointed by our virtual_address and add it to th
 Parameter: MeMS Virtual address (that is created by MeMS) 
 Returns: nothing
 */
-void mems_free(void *v_ptr){
-    
-}
+void mems_free(void *v_ptr);

@@ -11,7 +11,7 @@
 typedef struct SubNode {
     void* mem_ptr;  // MeMS virtual address
     size_t size;    // Size of the segment
-    char is_allocated;  // P for Process, H for Hole
+    char is_allocated;  // 'P' for Process, 'H' for Hole
     struct SubNode* nextNode;
     struct SubNode* prevNode;
 } SubNode;
@@ -19,13 +19,21 @@ typedef struct SubNode {
 // Main Chain Node structure
 typedef struct MainNode {
     SubNode* sub_chain;
-    size_t = size;
+    size_t size;
     struct MainNode* nextNode;
     struct MainNode* prevNode;
 } MainNode;
 
-MainNode* head = NULL;  // Head of the free list
-void* mem_start = NULL;     // Starting MeMS virtual address
+MainNode* head;  // Head of the free list
+void* mem_start;     // Starting MeMS virtual address
+
+// Function to initialize the MeMS system
+void mems_init() {
+    // You can perform any necessary initialization here
+    // For example, initializing the head of the free list or other global variables
+    head = NULL;  // Initialize the head of the free list
+    mem_start = NULL; // Initialize the starting MeMS virtual address
+}
 
 // Function to allocate memory using MeMS
 void* mems_malloc(size_t size) {
@@ -34,7 +42,7 @@ void* mems_malloc(size_t size) {
     SubNode* cursorSubNode = NULL;
     MainNode* cursorMainNode = head;
     while (cursorMainNode != NULL) {
-        cursorSubNode = cursorMainNode -> subChainHead;
+        cursorSubNode = cursorMainNode -> sub_chain;
         while (cursorSubNode != NULL) {
             if (cursorSubNode -> is_allocated == 'H') {
                 if (cursorSubNode -> size >= size) {
@@ -61,15 +69,15 @@ void* mems_malloc(size_t size) {
             newHole -> nextNode = finalSubNode -> nextNode;
             finalSubNode -> nextNode = newHole;
             newHole -> size = (finalSubNode -> size) - size;
-            newHole -> mem_ptr = memptr + size;
+            newHole -> mem_ptr = (finalSubNode -> mem_ptr) + size;
             newHole -> is_allocated = 'H';
             finalSubNode -> size = size;
         }
     }
     else {
-        size_t newMainNodeSize = (((int) (size/PAGE_SIZE) + 1) * PAGE_SIZE;
+        size_t newMainNodeSize = ((int) (size/PAGE_SIZE) + 1) * PAGE_SIZE;
         void* mem_ptr = mmap(NULL, newMainNodeSize, PROT_WRITE, MAP_PRIVATE, -1, 0);
-        MainNode* newMainNode = (SubNode*) malloc(sizeof(MainNode));
+        MainNode* newMainNode = (MainNode*) malloc(sizeof(MainNode));
         newMainNode -> size = newMainNodeSize;
         if (head == NULL) {
             newMainNode -> nextNode = NULL;
@@ -264,32 +272,55 @@ void mems_finish() {
 }
 
 
-int main(int argc, char const* argv[]) {
-    // Initialize the MeMS system (you should implement this part based on your requirements)
-    // ...
+// include other header files as needed
+#include"mems.h"
 
-    // Example usage of MeMS functions
 
-    // Allocate memory using MeMS
-    void* mem_ptr1 = mems_malloc(1024);
-    void* mem_ptr2 = mems_malloc(2048);
+int main(int argc, char const *argv[])
+{
+    // initialise the MeMS system 
+    mems_init();
+    int* ptr[10];
 
-    // Print MeMS statistics
-    mems_print_stats();
-
-    // Free memory using MeMS
-    mems_free(mem_ptr1);
-
-    // Retrieve the MeMS physical address
-    void* physical_ptr = mems_get(mem_ptr2);
-    if (physical_ptr != NULL) {
-        printf("MeMS Physical Address: %p\n", physical_ptr);
-    } else {
-        printf("Physical Address not found for the given MeMS virtual address.\n");
+    /*
+    This allocates 10 arrays of 250 integers each
+    */
+    printf("\n------- Allocated virtual addresses [mems_malloc] -------\n");
+    for(int i=0;i<10;i++){
+        ptr[i] = (int*)mems_malloc(sizeof(int)*250);
+        printf("Virtual address: %lu\n", (unsigned long)ptr[i]);
     }
 
-    // Clean up the MeMS system
-    mems_finish();
+    /*
+    In this section we are tring to write value to 1st index of array[0] (here it is 0 based indexing).
+    We get get value of both the 0th index and 1st index of array[0] by using function mems_get.
+    Then we write value to 1st index using 1st index pointer and try to access it via 0th index pointer.
 
+    This section is show that even if we have allocated an array using mems_malloc but we can 
+    retrive MeMS physical address of any of the element from that array using mems_get. 
+    */
+    printf("\n------ Assigning value to Virtual address [mems_get] -----\n");
+    // how to write to the virtual address of the MeMS (this is given to show that the system works on arrays as well)
+    int* phy_ptr= (int*) mems_get(&ptr[0][1]); // get the address of index 1
+    phy_ptr[0]=200; // put value at index 1
+    int* phy_ptr2= (int*) mems_get(&ptr[0][0]); // get the address of index 0
+    printf("Virtual address: %lu\tPhysical Address: %lu\n",(unsigned long)ptr[0],(unsigned long)phy_ptr2);
+    printf("Value written: %d\n", phy_ptr2[1]); // print the address of index 1 
+
+    /*
+    This shows the stats of the MeMS system.  
+    */
+    printf("\n--------- Printing Stats [mems_print_stats] --------\n");
+    mems_print_stats();
+
+    /*
+    This section shows the effect of freeing up space on free list and also the effect of 
+    reallocating the space that will be fullfilled by the free list.
+    */
+    printf("\n--------- Freeing up the memory [mems_free] --------\n");
+    mems_free(ptr[3]);
+    mems_print_stats();
+    ptr[3] = (int*)mems_malloc(sizeof(int)*250);
+    mems_print_stats();
     return 0;
 }
