@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>  // Include this header for PROT_READ, PROT_WRITE
+#include <errno.h>   // Include this header for MAP_FAILED
 
 #define PAGE_SIZE 4096
 
@@ -48,10 +50,11 @@ void* mems_malloc(size_t size) {
         // Allocate the requested memory from the segment
         segment->is_allocated = 1;
         return segment->mem_ptr;
-    } else {
+    } 
+    else {
         // Use mmap to allocate a new segment
         size_t required_size = (size / PAGE_SIZE + 1) * PAGE_SIZE;
-        void* new_mem = mmap(NULL, required_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        void* new_mem = mmap(NULL, required_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
         if (new_mem == MAP_FAILED) {
             // Handle mmap error
             return NULL;
