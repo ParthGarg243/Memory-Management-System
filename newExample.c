@@ -298,7 +298,7 @@ void* mems_malloc(size_t size) {
     }
 
     if (found == 1) {
-        if (size == finalSubNode->size) {
+        if (size == finalSubNode -> size) {
             finalSubNode->processOrHole = 'P';
             printf("1) bleh\n");
             return (void*)(intptr_t)finalSubNode->startAddress;
