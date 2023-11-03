@@ -300,7 +300,6 @@ void* mems_malloc(size_t size) {
     if (found == 1) {
         if (size == finalSubNode -> size) {
             finalSubNode->processOrHole = 'P';
-            printf("1) bleh\n");
             return (void*)(intptr_t)finalSubNode->startAddress;
         } 
         else if (size < finalSubNode->size){
@@ -313,24 +312,16 @@ void* mems_malloc(size_t size) {
             if (newHole -> nextNode != NULL) {
                 newHole -> nextNode -> prevNode = newHole;
             }          
-
-            // newHole->prevNode = finalSubNode;
-            // newHole->nextNode = finalSubNode->nextNode;
-            // if (finalSubNode->nextNode) {
-            //     finalSubNode->nextNode->prevNode = newHole;
-            // }
-            // finalSubNode->nextNode = newHole;
             newHole->size = (finalSubNode->size) - size;
             newHole->endAddress = finalSubNode->endAddress;
             finalSubNode->size = size;
             finalSubNode->endAddress = (finalSubNode->startAddress) + size - 1;
             newHole->startAddress = (finalSubNode->endAddress) + 1;
-            printf("%ld\n", newHole -> size);
-            printf("2) %ld\n", newHole -> size);
+            finalSubNode->processOrHole = 'P';
             return (void*)(intptr_t)finalSubNode->startAddress;
         }
     } 
-    else {
+    else if (found == 0) {
         size_t pages = (size / PAGE_SIZE) + 1;
         size_t newMainNodeSize = pages * PAGE_SIZE;
         struct MainChainNode* newMainNode = (struct MainChainNode*) mmap(NULL, newMainNodeSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
@@ -345,7 +336,7 @@ void* mems_malloc(size_t size) {
             newMainNode->prevNode = NULL;
             newMainNode->subChainHead = NULL;
         } 
-        else {
+        else if (mainChainHead) {
             struct MainChainNode* anotherCursorMainNode = mainChainHead;
             while (anotherCursorMainNode->nextNode != NULL) {
                 anotherCursorMainNode = anotherCursorMainNode->nextNode;
@@ -378,7 +369,6 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
-            printf("3) %ld\n", newHole -> size);
             return (void*)(intptr_t)newProcess->startAddress;
         } 
         else if (newMainNodeSize == size) {
@@ -394,7 +384,6 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
-            printf("4) bloop\n");
             return (void*)(intptr_t)newProcess->startAddress;
         }
     }
