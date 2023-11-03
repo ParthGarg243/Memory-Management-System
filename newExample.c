@@ -304,16 +304,14 @@ void* mems_malloc(size_t size) {
         } 
         else if (size < finalSubNode->size){
             struct SubChainNode* newHole = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-            struct SubChainNode* tempNode = finalSubNode -> nextNode;
             newHole->physicalAddress = (void*) newHole;
             newHole->processOrHole = 'H';
-            finalSubNode -> nextNode = newHole;
-            if (tempNode) {
-                tempNode -> prevNode = newHole;
-            }
-            newHole -> nextNode = tempNode;
+            newHole -> nextNode = finalSubNode -> nextNode;
             newHole -> prevNode = finalSubNode;
-
+            finalSubNode -> nextNode = newHole;
+            if (newHole -> nextNode != NULL) {
+                newHole -> nextNode -> prevNode = newNode;
+            }          
 
             // newHole->prevNode = finalSubNode;
             // newHole->nextNode = finalSubNode->nextNode;
