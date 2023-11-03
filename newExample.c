@@ -300,6 +300,7 @@ void* mems_malloc(size_t size) {
     if (found == 1) {
         if (size == finalSubNode->size) {
             finalSubNode->processOrHole = 'P';
+            printf("1) bleh\n");
             return (void*)(intptr_t)finalSubNode->startAddress;
         } 
         else if (size < finalSubNode->size){
@@ -310,7 +311,7 @@ void* mems_malloc(size_t size) {
             newHole -> prevNode = finalSubNode;
             finalSubNode -> nextNode = newHole;
             if (newHole -> nextNode != NULL) {
-                newHole -> nextNode -> prevNode = newNode;
+                newHole -> nextNode -> prevNode = newHole;
             }          
 
             // newHole->prevNode = finalSubNode;
@@ -324,6 +325,8 @@ void* mems_malloc(size_t size) {
             finalSubNode->size = size;
             finalSubNode->endAddress = (finalSubNode->startAddress) + size - 1;
             newHole->startAddress = (finalSubNode->endAddress) + 1;
+            printf("%ld\n", newHole -> size);
+            printf("2) %ld\n", newHole -> size);
             return (void*)(intptr_t)finalSubNode->startAddress;
         }
     } 
@@ -375,6 +378,7 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
+            printf("3) %ld\n", newHole -> size);
             return (void*)(intptr_t)newProcess->startAddress;
         } 
         else if (newMainNodeSize == size) {
@@ -390,6 +394,8 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
+            printf("4) bloop\n");
+            return (void*)(intptr_t)newProcess->startAddress;
         }
     }
     return NULL; // Return NULL at the end if allocation fails
