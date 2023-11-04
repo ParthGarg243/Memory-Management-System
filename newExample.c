@@ -412,23 +412,24 @@ void* mems_get(void* v_ptr) {
     return NULL;  // MeMS virtual address not found
 }
 
-void mems_free(void* ptr) {
-    // Memory deallocation function
-    struct MainChainNode* current = mainChainHead;
-    while (current) {
-        if (ptr < (void*)(intptr_t)(current->startAddress + current->size) &&
-            ptr < (void*)(intptr_t)(current->startAddress + current->size)) {
-            struct SubChainNode* subChain = current->subChainHead;
-            while (subChain) {
-                if (ptr >= (void*)(intptr_t)(current->startAddress + current->size - subChain->size) &&
-                    ptr < (void*)(intptr_t)(current->startAddress + current->size)) {
-                    subChain->processOrHole = 'H'; // Mark as HOLE
-                    return;
-                }
-                subChain = subChain->nextNode;
+void mems_free(void* ptr) { //TODO : join adjacent holes
+    struct MainChainNode* currentMain = mainChainHead;
+
+    while (currentMain) {
+        struct SubChainNode* currentSub = currentMain->subChainHead;
+
+        while (currentSub) {
+            // Check if the provided pointer is within the bounds of the current sub-chain
+            if (ptr >= (void*)(intptr_t)(currentSub->startAddress) && 
+                ptr <= (void*)(intptr_t)(currentSub->endAddress)) {
+                currentSub->processOrHole = 'H'; // Mark as HOLE
+                return; // Memory freed, exit the function
             }
+
+            currentSub = currentSub->nextNode;
         }
-        current = current->nextNode;
+
+        currentMain = currentMain->nextNode;
     }
 }
 
