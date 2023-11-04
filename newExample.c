@@ -153,7 +153,19 @@ void* mems_malloc(size_t size) {
 
 
 void* mems_get(void* v_ptr) {
-
+    // Return the MeMS physical address mapped to the given MeMS virtual address
+    struct MainChainNode* mainNode = mainChainHead;
+    while (mainNode) {
+        struct SubChainNode* subNode = mainNode->subChainHead;
+        while (subNode) {
+            if (subNode->startAddress <= v_ptr && subNode->endAddress >= v_ptr) {
+                return subNode->physicalAddress;
+            }
+            subNode = subNode->nextNode;
+        }
+        mainNode = mainNode->nextNode;
+    }
+    return NULL;  // MeMS virtual address not found
 }
 
 void mems_free(void* ptr) { //TODO : join adjacent holes
