@@ -221,22 +221,48 @@ void mems_free(void* ptr) {
 
 
 void mems_print_stats() {
-    // Memory statistics function
-    struct MainChainNode* current = mainChainHead;
-    while (current) {
-        printf("MAIN[%p:%p]-> ", (void*)(intptr_t)current->startAddress, (void*)(intptr_t)(current->startAddress + current->size - 1));
+    int i = 0;
+    int pages = 0;
+    int mainNodes = 0;
+    size_t unusedSize = 0;
 
-        struct SubChainNode* subChain = current->subChainHead;
-        while (subChain) {
-            printf("%s[%p:%p] <-> ", subChain->processOrHole == 'P' ? "P" : "H",
-                   (void*)(intptr_t)(current->startAddress + current->size - subChain->size),
-                   (void*)(intptr_t)(current->startAddress + current->size - 1));
-            subChain = subChain->nextNode;
-        }
-
-        printf("\n");
-        current = current->nextNode;
+    struct MainChainNode* mainNode = mainChainHead;
+    while (mainNode != NULL) {
+        mainNodes++;
+        mainNode = mainNode->nextNode;
     }
+
+    int subNodesArray[mainNodes];
+    struct MainChainNode* cursorMainNode = mainChainHead;
+    while (cursorMainNode != NULL) {
+        int subNodes = 0;
+        pages += cursorMainNode->pages;
+        printf("MAIN[%p:%p] -> ", (void*)(intptr_t)(cursorMainNode->startAddress), (void*)(intptr_t)((cursorMainNode->startAddress) + (cursorMainNode->size) - 1));
+        struct SubChainNode* cursorSubNode = cursorMainNode->subChainHead;
+        while (cursorSubNode != NULL) {
+            subNodes++;
+            if (cursorSubNode->processOrHole == 'P') {
+                printf("P");
+            } else if (cursorSubNode->processOrHole == 'H') {
+                printf("H");
+                unusedSize += cursorSubNode->size;
+            }
+            printf("[%p:%p] <-> ", (void*)(intptr_t)cursorSubNode->startAddress, (void*)(intptr_t)cursorSubNode->endAddress);
+            cursorSubNode = cursorSubNode->nextNode;
+        }
+        subNodesArray[i] = subNodes;
+        i++;
+        printf("NULL\n");
+        cursorMainNode = cursorMainNode->nextNode;
+    }
+    printf("Pages Used: %d\n", pages);
+    printf("Space Unused: %ld\n", unusedSize);
+    printf("Main Chain Length: %d\n", mainNodes);
+    printf("Sub-Chain Length Array: [");
+    for (int j = 0; j < mainNodes; j++) {
+        printf("%d,", subNodesArray[j]);
+    }
+    printf("]\n");
 }
 
 void mems_finish() {
@@ -301,7 +327,7 @@ int main(int argc, char const *argv[]) {
     mems_print_stats();
 
     // Clean up the MeMS system
-    mems_finish();
+    // mems_finish();
 
     return 0;
 }
