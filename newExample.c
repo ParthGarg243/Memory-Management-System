@@ -180,34 +180,44 @@ void mems_free(void* ptr) {
                 ptr <= (void*)(intptr_t)(currentSub->endAddress)) {
                 currentSub->processOrHole = 'H'; // Mark as HOLE
 
-                
                 if (currentSub->nextNode != NULL && currentSub->prevNode != NULL) {
                     if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'H') {
-                  
+                        // Merge with both the previous and next holes
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->prevNode->size += currentSub->size + currentSub->nextNode->size;
-                        currentSub->nextNode=NULL;
-                        currentSub->prevNode=NULL;
+
+                        // Update start and end addresses
+                        currentSub->prevNode->startAddress = currentSub->prevNode->startAddress;
+                        currentSub->prevNode->endAddress = currentSub->nextNode->endAddress;
+
+                        // Deallocate the currentSub node
                         munmap(currentSub, PAGE_SIZE);
-                        
                     }
                     else if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'P') {
-                    
+                        // Merge with the next hole
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->nextNode->size += currentSub->size;
-                        currentSub->nextNode=NULL;
-                        currentSub->prevNode=NULL;
+
+                        // Update start and end addresses
+                        currentSub->nextNode->startAddress = currentSub->startAddress;
+                        currentSub->nextNode->endAddress = currentSub->nextNode->endAddress;
+
+                        // Deallocate the currentSub node
                         munmap(currentSub, PAGE_SIZE);
                     }
                     else if (currentSub->nextNode->processOrHole == 'P' && currentSub->prevNode->processOrHole == 'H') {
-                        
+                        // Merge with the previous hole
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->prevNode->size += currentSub->size;
-                        currentSub->nextNode=NULL;
-                        currentSub->prevNode=NULL;
+
+                        // Update start and end addresses
+                        currentSub->prevNode->startAddress = currentSub->prevNode->startAddress;
+                        currentSub->prevNode->endAddress = currentSub->endAddress;
+
+                        // Deallocate the currentSub node
                         munmap(currentSub, PAGE_SIZE);
                     }
                 }
