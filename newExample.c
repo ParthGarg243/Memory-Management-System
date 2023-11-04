@@ -155,9 +155,9 @@ void* mems_malloc(size_t size) {
 void* mems_get(void* v_ptr) {
     // Return the MeMS physical address mapped to the given MeMS virtual address
     struct MainChainNode* mainNode = mainChainHead;
-    while (mainNode) {
+    while (mainNode!=NULL) {
         struct SubChainNode* subNode = mainNode->subChainHead;
-        while (subNode) {
+        while (subNode!=NULL) {
             if (subNode->startAddress <= v_ptr && subNode->endAddress >= v_ptr) {
                 return subNode->physicalAddress;
             }
@@ -168,26 +168,57 @@ void* mems_get(void* v_ptr) {
     return NULL;  // MeMS virtual address not found
 }
 
-void mems_free(void* ptr) { //TODO : join adjacent holes
+void mems_free(void* ptr) {
     struct MainChainNode* currentMain = mainChainHead;
 
-    while (currentMain) {
+    while (currentMain != NULL) {
         struct SubChainNode* currentSub = currentMain->subChainHead;
 
-        while (currentSub) {
+        while (currentSub != NULL) {
             // Check if the provided pointer is within the bounds of the current sub-chain
             if (ptr >= (void*)(intptr_t)(currentSub->startAddress) && 
                 ptr <= (void*)(intptr_t)(currentSub->endAddress)) {
                 currentSub->processOrHole = 'H'; // Mark as HOLE
-                return; // Memory freed, exit the function
+
+                
+                if (currentSub->nextNode != NULL && currentSub->prevNode != NULL) {
+                    if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'H') {
+                  
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->prevNode->size += currentSub->size + currentSub->nextNode->size;
+
+                        munmap(currentSub, PAGE_SIZE);
+                        
+                    }
+                    else if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'P') {
+                    
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->nextNode->size += currentSub->size;
+
+                        
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                    else if (currentSub->nextNode->processOrHole == 'P' && currentSub->prevNode->processOrHole == 'H') {
+                        
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->prevNode->size += currentSub->size;
+
+                       
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                }
+                return; 
             }
 
             currentSub = currentSub->nextNode;
         }
-
         currentMain = currentMain->nextNode;
     }
 }
+
 
 void mems_print_stats() {
     // Memory statistics function
