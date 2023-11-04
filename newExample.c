@@ -232,6 +232,7 @@ void mems_free(void* ptr) {
 
 
 void mems_print_stats() {
+    printf("\n----- MeMS SYSTEM STATS -----\n");
     int i = 0;
     int pages = 0;
     int mainNodes = 0;
@@ -274,6 +275,7 @@ void mems_print_stats() {
         printf("%d,", subNodesArray[j]);
     }
     printf("]\n");
+    printf("\n-----------------------------\n");
 }
 
 void mems_finish() {
