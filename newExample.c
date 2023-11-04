@@ -187,7 +187,8 @@ void mems_free(void* ptr) {
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->prevNode->size += currentSub->size + currentSub->nextNode->size;
-
+                        currentSub->nextNode=NULL;
+                        currentSub->prevNode=NULL;
                         munmap(currentSub, PAGE_SIZE);
                         
                     }
@@ -196,8 +197,8 @@ void mems_free(void* ptr) {
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->nextNode->size += currentSub->size;
-
-                        
+                        currentSub->nextNode=NULL;
+                        currentSub->prevNode=NULL;
                         munmap(currentSub, PAGE_SIZE);
                     }
                     else if (currentSub->nextNode->processOrHole == 'P' && currentSub->prevNode->processOrHole == 'H') {
@@ -205,8 +206,8 @@ void mems_free(void* ptr) {
                         currentSub->prevNode->nextNode = currentSub->nextNode;
                         currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->prevNode->size += currentSub->size;
-
-                       
+                        currentSub->nextNode=NULL;
+                        currentSub->prevNode=NULL;
                         munmap(currentSub, PAGE_SIZE);
                     }
                 }
