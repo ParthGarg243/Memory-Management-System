@@ -287,11 +287,15 @@ void mems_finish() {
             munmap(temp, sizeof(struct SubChainNode));
         }
 
-        mainChainHead = current;
+        struct MainChainNode* tempMain = current;
         current = current->nextNode;
-        munmap(current, sizeof(struct MainChainNode));
+        munmap(tempMain, sizeof(struct MainChainNode));
     }
+
+    // After deallocating all memory, set mainChainHead to NULL
+    mainChainHead = NULL;
 }
+
 
 int main(int argc, char const *argv[]) {
     // Initialize the MeMS system
@@ -338,7 +342,7 @@ int main(int argc, char const *argv[]) {
     mems_print_stats();
 
     // Clean up the MeMS system
-    // mems_finish();
+    mems_finish();
 
     return 0;
 }
