@@ -7,7 +7,7 @@
 
 struct SubChainNode {
     void* physicalAddress;
-    int startAddress;
+    int startAddress; 
     int endAddress;
     size_t size;
     char processOrHole;
@@ -15,7 +15,7 @@ struct SubChainNode {
     struct SubChainNode* prevNode;
 };
 
-struct MainChainNode {
+struct MainChainNode { //you cannot go back to the mainchain from the subchain
     void* physicalAddress;
     int pages;
     int startAddress;
@@ -58,7 +58,7 @@ void* mems_malloc(size_t size) {
         cursorMainNode = cursorMainNode->nextNode;
     }
 
-    if (found == 1) {
+    if (found == 1) {// what does intptr_t do?
         if (size == finalSubNode -> size) {
             finalSubNode->processOrHole = 'P';
             return (void*)(intptr_t)finalSubNode->startAddress;
@@ -158,13 +158,8 @@ void* mems_get(void* v_ptr) {
     while (mainNode) {
         struct SubChainNode* subNode = mainNode->subChainHead;
         while (subNode) {
-            if (subNode->processOrHole == 'H') {
-                if (v_ptr >= (void*)(intptr_t)(mainNode->startAddress + subNode->size) &&
-                    v_ptr < (void*)(intptr_t)(mainNode->startAddress + subNode->size + subNode->size)) {
-                    // MeMS virtual address is within this sub-chain node
-                    size_t offset = (size_t)(v_ptr - (void*)(intptr_t)(mainNode->startAddress + subNode->size));
-                    return (void*)(intptr_t)(mainNode->startAddress + offset);
-                }
+            if (subNode->startAddress ==(int) v_ptr) {
+                return subNode->physicalAddress;
             }
             subNode = subNode->nextNode;
         }
