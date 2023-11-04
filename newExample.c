@@ -248,11 +248,11 @@ int main(int argc, char const *argv[]) {
     */
     printf("\n------ Assigning value to Virtual address [mems_get] -----\n");
     // How to write to the virtual address of the MeMS (this is given to show that the system works on arrays as well)
-    int* phy_ptr = (int*)mems_get(&ptr[0][1]); // Get the address of index 1
-    phy_ptr[0] = 200; // Put value at index 1
+    int* phy_ptr1 = (int*)mems_get(&ptr[0][1]); // Get the address of index 1
+    phy_ptr1[0] = 200; // Put value at index 1
     int* phy_ptr2 = (int*)mems_get(&ptr[0][0]); // Get the address of index 0
     printf("Virtual address: %p\tPhysical Address: %p\n", (void*)(intptr_t)ptr[0], (void*)(intptr_t)phy_ptr2);
-    printf("Value written: %d\n", phy_ptr2[1]); // Print the value at index 1
+    printf("Value written: %d\n", phy_ptr1[0]); // Print the value at index 1
 
     /*
     This shows the stats of the MeMS system.
