@@ -156,14 +156,14 @@ void* mems_get(void* v_ptr) {
     // Return the MeMS physical address mapped to the given MeMS virtual address
     struct MainChainNode* mainNode = mainChainHead;
     while (mainNode!=NULL) {
-        struct SubChainNode* subNode = mainNode->subChainHead;
+        struct SubChainNode* subNode = mainNode -> subChainHead;
         while (subNode!=NULL) {
-            if (subNode->startAddress <= v_ptr && subNode->endAddress >= v_ptr) {
-                return subNode->physicalAddress;
+            if (subNode -> startAddress <= v_ptr && subNode -> endAddress >= v_ptr) {
+                return subNode -> physicalAddress;
             }
-            subNode = subNode->nextNode;
+            subNode = subNode -> nextNode;
         }
-        mainNode = mainNode->nextNode;
+        mainNode = mainNode -> nextNode;
     }
     return NULL;  // MeMS virtual address not found
 }
