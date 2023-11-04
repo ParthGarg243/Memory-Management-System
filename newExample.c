@@ -158,7 +158,7 @@ void* mems_get(void* v_ptr) {
     while (mainNode) {
         struct SubChainNode* subNode = mainNode->subChainHead;
         while (subNode) {
-            if (subNode->startAddress ==(int) v_ptr) {
+            if (subNode->startAddress ==(int)(intptr_t) v_ptr) {
                 return subNode->physicalAddress;
             }
             subNode = subNode->nextNode;
