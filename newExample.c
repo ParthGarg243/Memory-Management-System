@@ -179,14 +179,14 @@ void* mems_malloc(size_t size) {
     if (found == 1) {
         if (size == finalSubNode->size) {
             finalSubNode->processOrHole = 'P';
-            return (void*)(intptr_t)finalSubNode->startAddress;
+            return (void*)(uintptr_t)finalSubNode->startAddress;
         } else if (size < finalSubNode->size) {
             // Allocate a new hole at the appropriate position within the SubChain
-            struct SubChainNode* newHole = (struct SubChainNode*) mmap(
-                (void*)(intptr_t)((intptr_t)finalSubNode->physicalAddress + size),
+            struct SubChainNode* newHole = mmap(
+                (void*)(uintptr_t)((uintptr_t)finalSubNode->physicalAddress + size),
                 finalSubNode->size - size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0
             );
-            newHole->physicalAddress = (void*)(intptr_t)((intptr_t)finalSubNode->physicalAddress + size);
+            newHole->physicalAddress = (void*)newHole;// this was changed
             newHole->processOrHole = 'H';
             newHole->nextNode = finalSubNode->nextNode;
             newHole->prevNode = finalSubNode;
@@ -200,19 +200,19 @@ void* mems_malloc(size_t size) {
             finalSubNode->endAddress = (finalSubNode->startAddress) + size - 1;
             newHole->startAddress = (finalSubNode->endAddress) + 1;
             finalSubNode->processOrHole = 'P';
-            return (void*)(intptr_t)finalSubNode->startAddress;
+            return (void*)(uintptr_t)finalSubNode->startAddress;
         }
     } else if (found == 0) {
         size_t pages = (size / PAGE_SIZE) + 1;
         size_t newMainNodeSize = pages * PAGE_SIZE;
 
         // Allocate a new MainChainNode and initialize its physical address
-        struct MainChainNode* newMainNode = (struct MainChainNode*) mmap(
-            (void*)(intptr_t)(0), // Specify address as 0 to let the system choose
+        struct MainChainNode* newMainNode = mmap(
+            (void*)(uintptr_t)(0), // Specify address as 0 to let the system choose
             newMainNodeSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0
         );
         newMainNode->size = newMainNodeSize;
-        newMainNode->physicalAddress = (void*)(intptr_t)newMainNode;
+        newMainNode->physicalAddress = (void*)(uintptr_t)newMainNode;
         newMainNode->pages = pages;
 
         if (mainChainHead == NULL) {
@@ -235,18 +235,18 @@ void* mems_malloc(size_t size) {
 
         if (newMainNodeSize > size) {
             // Allocate a new process block within the new MainChainNode
-            struct SubChainNode* newProcess = (struct SubChainNode*) mmap(
-                (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress)),
+            struct SubChainNode* newProcess = mmap(
+                (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress)),
                 size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0
             );
 
             // Allocate a new hole within the new MainChainNode
-            struct SubChainNode* newHole = (struct SubChainNode*) mmap(
-                (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newProcess->endAddress - newMainNode->startAddress + 1)),
+            struct SubChainNode* newHole = mmap(
+                (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newProcess->endAddress - newMainNode->startAddress + 1)),
                 newMainNodeSize - size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0
             );
-            newProcess->physicalAddress = (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress));
-            newHole->physicalAddress = (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newProcess->endAddress - newMainNode->startAddress + 1));
+            newProcess->physicalAddress = (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress));
+            newHole->physicalAddress = (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newProcess->endAddress - newMainNode->startAddress + 1));
             newProcess->processOrHole = 'P';
             newHole->processOrHole = 'H';
             newProcess->prevNode = NULL;
@@ -263,14 +263,14 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
-            return (void*)(intptr_t)newProcess->startAddress;
+            return (void*)(uintptr_t)newProcess->startAddress;
         } else if (newMainNodeSize == size) {
             // Allocate a new process block for the entire MainChainNode
-            struct SubChainNode* newProcess = (struct SubChainNode*) mmap(
-                (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress)),
+            struct SubChainNode* newProcess = mmap(
+                (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress)),
                 size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0
             );
-            newProcess->physicalAddress = (void*)(intptr_t)((intptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress));
+            newProcess->physicalAddress = (void*)(uintptr_t)((uintptr_t)newMainNode->physicalAddress + (newMainNode->startAddress - newMainNode->startAddress));
             newProcess->startAddress = newMainNode->startAddress;
             newProcess->endAddress = (newProcess->startAddress) + size - 1;
             newProcess->processOrHole = 'P';
@@ -281,7 +281,7 @@ void* mems_malloc(size_t size) {
 
             // Update the startingVirtualAddress
             startingVirtualAddress += newMainNodeSize;
-            return (void*)(intptr_t)newProcess->startAddress;
+            return (void*)(uintptr_t)newProcess->startAddress;
         }
     }
     return NULL; // Return NULL at the end if allocation fails
@@ -294,18 +294,18 @@ void* mems_get(void* v_ptr) {
         return NULL;
     }
 
-    intptr_t virtual_addr = (intptr_t)v_ptr;
+    uintptr_t virtual_addr = (uintptr_t)v_ptr;
     struct MainChainNode* mainNode = mainChainHead;
 
     while (mainNode != NULL) {
         struct SubChainNode* subNode = mainNode->subChainHead;
 
         while (subNode != NULL) {
-            intptr_t start_addr = (intptr_t)subNode->startAddress;
-            intptr_t end_addr = (intptr_t)subNode->endAddress;
+            uintptr_t start_addr = (uintptr_t)subNode->startAddress;
+            uintptr_t end_addr = (uintptr_t)subNode->endAddress;
 
             if (virtual_addr >= start_addr && virtual_addr <= end_addr) {
-                return (void*)(intptr_t)subNode->physicalAddress;
+                return (void*)(uintptr_t)subNode->physicalAddress;
             }
 
             subNode = subNode->nextNode;
@@ -325,8 +325,8 @@ void mems_free(void* ptr) {
 
         while (currentSub != NULL) {
             // Check if the provided pointer is within the bounds of the current sub-chain
-            if (ptr >= (void*)(intptr_t)(currentSub->startAddress) && 
-                ptr <= (void*)(intptr_t)(currentSub->endAddress)) {
+            if (ptr >= (void*)(uintptr_t)(currentSub->startAddress) && 
+                ptr <= (void*)(uintptr_t)(currentSub->endAddress)) {
                 currentSub->processOrHole = 'H'; // Mark as HOLE
 
                 if (currentSub->nextNode != NULL && currentSub->prevNode != NULL) {
