@@ -361,6 +361,15 @@ void mems_free(void* ptr) {
                         munmap(currentSub, PAGE_SIZE);
                     }
                 }
+                else if(currentSub->nextNode==NULL){
+                    if(currentSub->prevNode->processOrHole=='P'){
+                        currentSub->processOrHole='H';
+                    }
+                    else{
+                        currentSub->prevNode->nextNode=NULL;
+                        currentSub->prevNode->endAddress = currentSub->endAddress;
+                    }
+                }
                 
                 return; 
             }
