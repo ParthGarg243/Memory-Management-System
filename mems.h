@@ -130,6 +130,10 @@ void* mems_malloc(size_t size) {
         } 
         else if (size < finalSubNode->size){
             struct SubChainNode* newHole = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (newHole == MAP_FAILED) {
+                perror("mmap failed");
+                return NULL; 
+            }
             newHole->processOrHole = 'H';
             newHole -> nextNode = finalSubNode -> nextNode;
             newHole -> prevNode = finalSubNode;
@@ -151,7 +155,15 @@ void* mems_malloc(size_t size) {
         size_t pages = (size / PAGE_SIZE) + 1;
         size_t newMainNodeSize = pages * PAGE_SIZE;
         struct MainChainNode* newMainNode = (struct MainChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (newMainNode == MAP_FAILED) {
+            perror("mmap failed");
+            return NULL; // Handle mmap error, e.g., return NULL or exit
+        }
         int* address = (int *) mmap(NULL, newMainNodeSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (address == MAP_FAILED) {
+            perror("mmap failed");
+            return NULL; // Handle mmap error, e.g., return NULL or exit
+        }
         newMainNode->size = newMainNodeSize;
         newMainNode->physicalAddress = (int*)address;
         newMainNode->pages = pages;
@@ -177,7 +189,15 @@ void* mems_malloc(size_t size) {
 
         if (newMainNodeSize > size) {
             struct SubChainNode* newProcess = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (newProcess == MAP_FAILED) {
+                perror("mmap");
+                return NULL; // Handle mmap error, e.g., return NULL or exit
+            }
             struct SubChainNode* newHole = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (newHole == MAP_FAILED) {
+                perror("mmap");
+                return NULL; // Handle mmap error, e.g., return NULL or exit
+            }
             newProcess->processOrHole = 'P';
             newHole->processOrHole = 'H';
             newProcess->prevNode = NULL;
@@ -200,6 +220,10 @@ void* mems_malloc(size_t size) {
         } 
         else if (newMainNodeSize == size) {
             struct SubChainNode* newProcess = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (newProcess == MAP_FAILED) {
+                perror("mmap");
+                return NULL; // Handle mmap error, e.g., return NULL or exit
+            }
             newProcess->startAddress = newMainNode->startAddress;
             newProcess->endAddress = (newProcess->startAddress) + size - 1;
             newProcess->processOrHole = 'P';
@@ -299,6 +323,10 @@ Parameter: MeMS Virtual address (that is created by MeMS)
 Returns: nothing
 */
 void mems_free(void* ptr) {
+    if (ptr == NULL) {
+        fprintf(stderr, "Invalid pointer passed\n");
+        return;
+    }
     struct MainChainNode* currentMain = mainChainHead;
 
     while (currentMain != NULL) {
