@@ -1,196 +1,348 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include <sys/mman.h>
+#include <stdint.h>
 
 #define PAGE_SIZE 4096
 
-// Memory Segment structure
-typedef struct MemorySegment {
-    void* mem_ptr;  // MeMS virtual address
-    size_t size;    // Size of the segment
-    int is_allocated;  // 1 if allocated (PROCESS), 0 if free (HOLE)
-    struct MemorySegment* next;
-    struct MemorySegment* prev;
-} MemorySegment;
+struct SubChainNode {
+    int* physicalAddress;
+    int startAddress; 
+    int endAddress;
+    size_t size;
+    char processOrHole;
+    struct SubChainNode* nextNode;
+    struct SubChainNode* prevNode;
+};
 
-// Main Chain Node structure
-typedef struct MainChainNode {
-    MemorySegment* sub_chain;
-    struct MainChainNode* next;
-    struct MainChainNode* prev;
-} MainChainNode;
+struct MainChainNode { //you cannot go back to the mainchain from the subchain
+    int* physicalAddress;
+    int pages;
+    int startAddress;
+    size_t size;
+    struct SubChainNode* subChainHead;
+    struct MainChainNode* nextNode;
+    struct MainChainNode* prevNode;
+};
 
-MainChainNode* head = NULL;  // Head of the free list
-void* mem_start = NULL;     // Starting MeMS virtual address
+struct MainChainNode* mainChainHead;
+int startingVirtualAddress;
 
-// Function to allocate memory using MeMS
+void mems_init() {
+    mainChainHead = NULL;
+    startingVirtualAddress = 1000;
+}
+
 void* mems_malloc(size_t size) {
-    MemorySegment* segment = NULL;
-    // Iterate through the free list to find a suitable segment
-    MainChainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        MemorySegment* sub_chain = main_chain_node->sub_chain;
-        while (sub_chain != NULL) {
-            if (sub_chain->is_allocated == 0 && sub_chain->size >= size) {
-                segment = sub_chain;
-                break;
+    int found = 0;
+    struct SubChainNode* finalSubNode = NULL;
+    struct SubChainNode* cursorSubNode = NULL;
+    struct MainChainNode* cursorMainNode = mainChainHead;
+    // This loop searches for a suitable hole in existing chains
+    while (cursorMainNode != NULL) {
+        cursorSubNode = cursorMainNode->subChainHead;
+        while (cursorSubNode != NULL) {
+            if (cursorSubNode->processOrHole == 'H') {
+                if (cursorSubNode->size >= size) {
+                    finalSubNode = cursorSubNode;
+                    found = 1;
+                    break;
+                }
             }
-            sub_chain = sub_chain->next;
+            cursorSubNode = cursorSubNode->nextNode;
         }
-        if (segment != NULL) {
+        if (found == 1) {
             break;
         }
-        main_chain_node = main_chain_node->next;
+        cursorMainNode = cursorMainNode->nextNode;
     }
 
-    if (segment != NULL) {
-        // Allocate the requested memory from the segment
-        segment->is_allocated = 1;
-        return segment->mem_ptr;
-    } else {
-        // Use mmap to allocate a new segment
-        size_t required_size = (size / PAGE_SIZE + 1) * PAGE_SIZE;
-        void* new_mem = mmap(NULL, required_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-        if (new_mem == MAP_FAILED) {
-            // Handle mmap error
-            return NULL;
+    if (found == 1) {// what does intptr_t do?
+        if (size == finalSubNode -> size) {
+            finalSubNode->processOrHole = 'P';
+            return (void*)(long)finalSubNode->startAddress;
+        } 
+        else if (size < finalSubNode->size){
+            struct SubChainNode* newHole = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            newHole->processOrHole = 'H';
+            newHole -> nextNode = finalSubNode -> nextNode;
+            newHole -> prevNode = finalSubNode;
+            finalSubNode -> nextNode = newHole;
+            if (newHole -> nextNode != NULL) {
+                newHole -> nextNode -> prevNode = newHole;
+            }          
+            newHole->size = (finalSubNode->size) - size;
+            newHole->endAddress = finalSubNode->endAddress;
+            finalSubNode->size = size;
+            finalSubNode->endAddress = (finalSubNode->startAddress) + size - 1;
+            newHole->startAddress = (finalSubNode->endAddress) + 1;
+            newHole->physicalAddress = (int*)((long) cursorMainNode -> physicalAddress + newHole -> startAddress - cursorMainNode -> startAddress);
+            finalSubNode->processOrHole = 'P';
+            return (void*)(long)finalSubNode->startAddress;
         }
-        
-        MemorySegment* new_segment = (MemorySegment*)malloc(sizeof(MemorySegment));
-        new_segment->mem_ptr = new_mem;
-        new_segment->size = required_size;
-        new_segment->is_allocated = 1;
-        // Add the new segment to the free list
-        // ...
+    } 
+    else if (found == 0) {
+        size_t pages = (size / PAGE_SIZE) + 1;
+        size_t newMainNodeSize = pages * PAGE_SIZE;
+        struct MainChainNode* newMainNode = (struct MainChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        int* address = (int *) mmap(NULL, newMainNodeSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        newMainNode->size = newMainNodeSize;
+        newMainNode->physicalAddress = (int*)address;
+        newMainNode->pages = pages;
 
-        return new_mem;
-    }
-}
-
-// Function to free memory using MeMS
-void mems_free(void* ptr) {
-    // Find the segment in the free list based on the MeMS virtual address (ptr)
-    MainChainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        MemorySegment* sub_chain = main_chain_node->sub_chain;
-        while (sub_chain != NULL) {
-            if (sub_chain->mem_ptr == ptr) {
-                // Mark the segment as HOLE
-                sub_chain->is_allocated = 0;
-                return;
+        if (mainChainHead == NULL) {
+            mainChainHead = newMainNode;
+            newMainNode->startAddress = startingVirtualAddress;
+            newMainNode->nextNode = NULL;
+            newMainNode->prevNode = NULL;
+            newMainNode->subChainHead = NULL;
+        } 
+        else if (mainChainHead) {
+            struct MainChainNode* anotherCursorMainNode = mainChainHead;
+            while (anotherCursorMainNode->nextNode != NULL) {
+                anotherCursorMainNode = anotherCursorMainNode->nextNode;
             }
-            sub_chain = sub_chain->next;
-        }
-        main_chain_node = main_chain_node->next;
-    }
-
-    // If the segment with the provided MeMS virtual address is not found, you can handle this as an error.
-    // You may print an error message or take appropriate action as needed.
-    // For example:
-    fprintf(stderr, "Error: Segment with MeMS virtual address %p not found in the free list.\n", ptr);
-    // You might also consider returning an error code to indicate failure.
-}
-
-// Function to print MeMS statistics
-void mems_print_stats() {
-    // Initialize variables to store statistics
-    size_t total_mapped_pages = 0;
-    size_t total_unused_memory = 0;
-
-    // Iterate through the free list and print details
-    MainChainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        MemorySegment* sub_chain = main_chain_node->sub_chain;
-        while (sub_chain != NULL) {
-            // Print details about the segment
-            printf("Segment at MeMS virtual address: %p\n", sub_chain->mem_ptr);
-            printf("Size: %zu bytes\n", sub_chain->size);
-            printf("Status: %s\n", sub_chain->is_allocated ? "PROCESS" : "HOLE");
-
-            // Update statistics
-            total_mapped_pages += sub_chain->size / PAGE_SIZE;
-            if (sub_chain->is_allocated == 0) {
-                total_unused_memory += sub_chain->size;
-            }
-
-            sub_chain = sub_chain->next;
+            anotherCursorMainNode->nextNode = newMainNode;
+            newMainNode->startAddress = (anotherCursorMainNode->startAddress) + (anotherCursorMainNode->size);
+            newMainNode->subChainHead = NULL;
+            newMainNode->nextNode = NULL;
+            newMainNode->prevNode = anotherCursorMainNode;
         }
 
-        main_chain_node = main_chain_node->next;
-    }
+        if (newMainNodeSize > size) {
+            struct SubChainNode* newProcess = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            struct SubChainNode* newHole = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            newProcess->processOrHole = 'P';
+            newHole->processOrHole = 'H';
+            newProcess->prevNode = NULL;
+            newProcess->nextNode = newHole;
+            newHole->prevNode = newProcess;
+            newHole->nextNode = NULL;
+            newProcess->size = size;
+            newHole->size = newMainNodeSize - size;
+            newProcess->startAddress = newMainNode->startAddress;
+            newProcess->endAddress = (newProcess->startAddress) + size - 1;
+            newHole->startAddress = newProcess->endAddress + 1;
+            newHole->endAddress = (newHole->startAddress) + (newHole->size) - 1;
+            newProcess->physicalAddress = (int *)((long) newMainNode -> physicalAddress + newProcess -> startAddress - newMainNode -> startAddress);
+            newHole->physicalAddress = (int *)((long) newMainNode -> physicalAddress + newHole -> startAddress - newMainNode -> startAddress);
+            newMainNode->subChainHead = newProcess;
 
-    // Print total statistics
-    printf("Total Mapped Pages: %zu\n", total_mapped_pages);
-    printf("Total Unused Memory: %zu bytes\n", total_unused_memory);
+            // Update the startingVirtualAddress
+            startingVirtualAddress += newMainNodeSize;
+            return (void*)(long)newProcess->startAddress;
+        } 
+        else if (newMainNodeSize == size) {
+            struct SubChainNode* newProcess = (struct SubChainNode*) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            newProcess->startAddress = newMainNode->startAddress;
+            newProcess->endAddress = (newProcess->startAddress) + size - 1;
+            newProcess->processOrHole = 'P';
+            newProcess->size = size;
+            newProcess->prevNode = NULL;
+            newProcess->nextNode = NULL;
+            newProcess->physicalAddress = (int*)((long) newMainNode -> physicalAddress + newProcess -> startAddress - newMainNode -> startAddress);
+            newMainNode->subChainHead = newProcess;
+
+            // Update the startingVirtualAddress
+            startingVirtualAddress += newMainNodeSize;
+            return (void*)(long)newProcess->startAddress;
+        }
+    }
+    return NULL; // Return NULL at the end if allocation fails
 }
 
 
 void* mems_get(void* v_ptr) {
-    // Iterate through the free list to find the segment with the matching MeMS virtual address
-    MainChainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        MemorySegment* sub_chain = main_chain_node->sub_chain;
-        while (sub_chain != NULL) {
-            if (sub_chain->mem_ptr == v_ptr) {
-                // Found the segment with the matching virtual address
-                return sub_chain->mem_ptr;  // Return the MeMS physical address
-            }
-            sub_chain = sub_chain->next;
+    long v_ptr_int=(long) v_ptr;
+    // Return the MeMS physical address mapped to the given MeMS virtual address
+    struct MainChainNode* mainNode = mainChainHead;
+    while (mainNode!=NULL) {
+        if (mainNode -> startAddress <= v_ptr_int && mainNode -> startAddress + mainNode -> size >= v_ptr_int) {
+            return (void*)(long) mainNode -> physicalAddress + v_ptr_int - mainNode -> startAddress;
         }
-        main_chain_node = main_chain_node->next;
+        mainNode = mainNode -> nextNode;
     }
-
-    // If the segment with the provided virtual address is not found, return NULL
-    return NULL;
+    // return NULL;  // MeMS virtual address not found
 }
 
+void mems_free(void* ptr) {
+    struct MainChainNode* currentMain = mainChainHead;
 
-// Function to clean up the MeMS system
-// Function to clean up the MeMS system
+    while (currentMain != NULL) {
+        struct SubChainNode* currentSub = currentMain->subChainHead;
+
+        while (currentSub != NULL) {
+            // Check if the provided pointer is within the bounds of the current sub-chain
+            if (ptr >= (void*)(intptr_t)(currentSub->startAddress) && 
+                ptr <= (void*)(intptr_t)(currentSub->endAddress)) {
+                currentSub->processOrHole = 'H'; // Mark as HOLE
+
+                if (currentSub->nextNode != NULL && currentSub->prevNode != NULL) {
+                    if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'H') {
+                        // Merge with both the previous and next holes
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->prevNode->size += currentSub->size + currentSub->nextNode->size;
+
+                        // Update start and end addresses
+                        currentSub->prevNode->startAddress = currentSub->prevNode->startAddress;
+                        currentSub->prevNode->endAddress = currentSub->nextNode->endAddress;
+
+                        // Deallocate the currentSub node
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                    else if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'P') {
+                        // Merge with the next hole
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->nextNode->size += currentSub->size;
+
+                        // Update start and end addresses
+                        currentSub->nextNode->startAddress = currentSub->startAddress;
+                        currentSub->nextNode->endAddress = currentSub->nextNode->endAddress;
+
+                        // Deallocate the currentSub node
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                    else if (currentSub->nextNode->processOrHole == 'P' && currentSub->prevNode->processOrHole == 'H') {
+                        // Merge with the previous hole
+                        currentSub->prevNode->nextNode = currentSub->nextNode;
+                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        currentSub->prevNode->size += currentSub->size;
+
+                        // Update start and end addresses
+                        currentSub->prevNode->startAddress = currentSub->prevNode->startAddress;
+                        currentSub->prevNode->endAddress = currentSub->endAddress;
+
+                        // Deallocate the currentSub node
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                }
+                return; 
+            }
+
+            currentSub = currentSub->nextNode;
+        }
+        currentMain = currentMain->nextNode;
+    }
+}
+
+void mems_print_stats() {
+    printf("\n----- MeMS SYSTEM STATS -----\n");
+    int i = 0;
+    int pages = 0;
+    int mainNodes = 0;
+    size_t unusedSize = 0;
+
+    struct MainChainNode* mainNode = mainChainHead;
+    while (mainNode != NULL) {
+        mainNodes++;
+        mainNode = mainNode->nextNode;
+    }
+
+    int subNodesArray[mainNodes];
+    struct MainChainNode* cursorMainNode = mainChainHead;
+    while (cursorMainNode != NULL) {
+        int subNodes = 0;
+        pages += cursorMainNode->pages;
+        printf("MAIN[%d:%d], %ld -> ", (int)(cursorMainNode->startAddress), (int)((cursorMainNode->startAddress) + (cursorMainNode->size) - 1), (long)cursorMainNode -> physicalAddress);
+        struct SubChainNode* cursorSubNode = cursorMainNode->subChainHead;
+        while (cursorSubNode != NULL) {
+            subNodes++;
+            if (cursorSubNode->processOrHole == 'P') {
+                printf("P");
+            } else if (cursorSubNode->processOrHole == 'H') {
+                printf("H");
+                unusedSize += cursorSubNode->size;
+            }
+            printf("[%d:%d], %ld <-> ", (int)(cursorSubNode->startAddress), (int)(cursorSubNode->endAddress), (long)cursorSubNode -> physicalAddress);
+            cursorSubNode = cursorSubNode->nextNode;
+        }
+        subNodesArray[i] = subNodes;
+        i++;
+        printf("NULL\n");
+        cursorMainNode = cursorMainNode->nextNode;
+    }
+    printf("Pages Used: %d\n", pages);
+    printf("Space Unused: %ld\n", unusedSize);
+    printf("Main Chain Length: %d\n", mainNodes);
+    printf("Sub-Chain Length Array: [");
+    for (int j = 0; j < mainNodes; j++) {
+        printf("%d,", subNodesArray[j]);
+    }
+    printf("]\n");
+    printf("\n-----------------------------\n");
+}
+
 void mems_finish() {
-    // Iterate through the free list and unmap all allocated memory segments
-    MainChainNode* main_chain_node = head;
-    while (main_chain_node != NULL) {
-        MemorySegment* sub_chain = main_chain_node->sub_chain;
-        while (sub_chain != NULL) {
-            if (sub_chain->is_allocated) {
-                // Unmap the allocated memory segment
-                munmap(sub_chain->mem_ptr, sub_chain->size);
-            }
-            sub_chain = sub_chain->next;
+    // Cleanup function
+    struct MainChainNode* current = mainChainHead;
+    while (current) {
+        struct SubChainNode* subChain = current->subChainHead;
+        while (subChain) {
+            struct SubChainNode* temp = subChain;
+            subChain = subChain->nextNode;
+            munmap(temp, sizeof(struct SubChainNode));
         }
-        main_chain_node = main_chain_node->next;
+
+        struct MainChainNode* tempMain = current;
+        current = current->nextNode;
+        munmap(tempMain, sizeof(struct MainChainNode));
     }
+
+    // After deallocating all memory, set mainChainHead to NULL
+    mainChainHead = NULL;
 }
 
 
-int main(int argc, char const* argv[]) {
-    // Initialize the MeMS system (you should implement this part based on your requirements)
-    // ...
+int main(int argc, char const *argv[])
+{
+    // initialise the MeMS system 
+    mems_init();
+    int* ptr[10];
 
-    // Example usage of MeMS functions
+    /*
+    This allocates 10 arrays of 250 integers each
+    */
+    printf("\n------- Allocated virtual addresses [mems_malloc] -------\n");
+    for(int i=0;i<10;i++){
+        ptr[i] = (int*)mems_malloc(sizeof(int)*250);
+        printf("Virtual address: %lu\n", (unsigned long)ptr[i]);
+    }
 
-    // Allocate memory using MeMS
-    void* mem_ptr1 = mems_malloc(1024);
-    void* mem_ptr2 = mems_malloc(2048);
+    /*
+    In this section we are tring to write value to 1st index of array[0] (here it is 0 based indexing).
+    We get get value of both the 0th index and 1st index of array[0] by using function mems_get.
+    Then we write value to 1st index using 1st index pointer and try to access it via 0th index pointer.
 
-    // Print MeMS statistics
+    This section is show that even if we have allocated an array using mems_malloc but we can 
+    retrive MeMS physical address of any of the element from that array using mems_get. 
+    */
+    printf("\n------ Assigning value to Virtual address [mems_get] -----\n");
+    // how to write to the virtual address of the MeMS (this is given to show that the system works on arrays as well)
+    int* phy_ptr= (int*) mems_get(&ptr[0][1]); // get the address of index 1
+    phy_ptr[0]=200; // put value at index 1
+    int* phy_ptr2= (int*) mems_get(&ptr[0][0]); // get the address of index 0
+    printf("Virtual address: %lu\tPhysical Address: %lu\n",(unsigned long)ptr[0],(unsigned long)phy_ptr2);
+    printf("Value written: %d\n", phy_ptr2[1]); // print the address of index 1 
+
+    /*
+    This shows the stats of the MeMS system.  
+    */
+    printf("\n--------- Printing Stats [mems_print_stats] --------\n");
     mems_print_stats();
 
-    // Free memory using MeMS
-    mems_free(mem_ptr1);
+    /*
+    This section shows the effect of freeing up space on free list and also the effect of 
+    reallocating the space that will be fullfilled by the free list.
+    */
+    printf("\n--------- Freeing up the memory [mems_free] --------\n");
+    mems_free(ptr[3]);
+    mems_print_stats();
+    ptr[3] = (int*)mems_malloc(sizeof(int)*250);
+    mems_print_stats();
 
-    // Retrieve the MeMS physical address
-    void* physical_ptr = mems_get(mem_ptr2);
-    if (physical_ptr != NULL) {
-        printf("MeMS Physical Address: %p\n", physical_ptr);
-    } else {
-        printf("Physical Address not found for the given MeMS virtual address.\n");
-    }
-
-    // Clean up the MeMS system
+    printf("\n--------- Unmapping all memory [mems_finish] --------\n\n");
     mems_finish();
-
     return 0;
 }
