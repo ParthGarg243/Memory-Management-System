@@ -314,7 +314,7 @@ void mems_free(void* ptr) {
                     if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'H') {
                         // Merge with both the previous and next holes
                         currentSub->prevNode->nextNode = currentSub->nextNode;
-                        currentSub->nextNode->prevNode = currentSub->prevNode;
+                        if(currentSub->nextNode) currentSub->nextNode->prevNode = currentSub->prevNode;
                         currentSub->prevNode->size += currentSub->size + currentSub->nextNode->size;
 
                         // Update start and end addresses
@@ -322,7 +322,17 @@ void mems_free(void* ptr) {
                         currentSub->prevNode->endAddress = currentSub->nextNode->endAddress;
 
                         // Deallocate the currentSub node
+                        struct SubChainNode* nextPNode = currentSub->nextNode->nextNode;
+                        
+                        currentSub->prevNode->nextNode=nextPNode;
+                        if(nextPNode) nextPNode->prevNode=currentSub->prevNode;
+                    
+
                         munmap(currentSub, PAGE_SIZE);
+                        // munmap(currentSub->nextNode, PAGE_SIZE);
+
+                    
+                        
                     }
                     else if (currentSub->nextNode->processOrHole == 'H' && currentSub->prevNode->processOrHole == 'P') {
                         // Merge with the next hole
@@ -351,6 +361,7 @@ void mems_free(void* ptr) {
                         munmap(currentSub, PAGE_SIZE);
                     }
                 }
+                
                 return; 
             }
 

@@ -76,7 +76,6 @@ The MeMS code provides a basic memory allocation and management system. It allow
 To compile and execute the MeMS code, follow these steps:
 
 ```shell
-rm -rf newExample
-gcc -o newExample newExample.c
-./newExample
+make
+./example
 
