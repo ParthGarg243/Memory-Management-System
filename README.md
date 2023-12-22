@@ -71,3 +71,12 @@ The MeMS code provides a basic memory allocation and management system. It allow
 ### `mems_finish`
 - Cleans up the MeMS system by deallocating all allocated memory.
 - Resets `mainChainHead` to `NULL.
+
+## 6. Compilation and Execution
+To compile and execute the MeMS code, follow these steps:
+
+```
+cd MeMS-Test-Cases-master/<test-type>
+make
+./test<test-case-number>
+```
