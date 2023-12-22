@@ -55,7 +55,7 @@ Returns: Nothing
 */
 void mems_init() {
     mainChainHead = NULL;
-    startingVirtualAddress = 1000;
+    startingVirtualAddress = 0;
 }
 
 
@@ -323,7 +323,7 @@ Parameter: MeMS Virtual address (that is created by MeMS)
 Returns: nothing
 */
 void mems_free(void* ptr) {
-    if (ptr == NULL) {
+    if (ptr < 0) {
         fprintf(stderr, "Invalid pointer passed\n");
         return;
     }
@@ -392,10 +392,23 @@ void mems_free(void* ptr) {
                 else if(currentSub->nextNode==NULL){
                     if(currentSub->prevNode->processOrHole=='P'){
                         currentSub->processOrHole='H';
+                        munmap(currentSub, PAGE_SIZE);
                     }
                     else{
                         currentSub->prevNode->nextNode=NULL;
                         currentSub->prevNode->endAddress = currentSub->endAddress;
+                        munmap(currentSub, PAGE_SIZE);
+                    }
+                }
+                else if (currentSub->prevNode==NULL) {
+                    if (currentSub->nextNode != NULL) {
+                        if (currentSub->nextNode->processOrHole=='H') {
+                            currentSub->endAddress = currentSub->nextNode->endAddress;
+                            currentSub->size += currentSub->nextNode->size;
+                            currentSub->nextNode = currentSub->nextNode->nextNode;
+                            currentSub->processOrHole = 'H';
+                            // munmap(currentSub, PAGE_SIZE);
+                        }
                     }
                 }
                 
